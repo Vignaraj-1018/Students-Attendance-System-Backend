@@ -1,0 +1,8 @@
+services:
+  - name: your-app
+    plan: web
+    env:
+      - key: SPRING_PROFILES_ACTIVE
+        value: production
+    buildCommand: ./gradlew build
+    startCommand: java -Dserver.port=$PORT -jar your-app.jar

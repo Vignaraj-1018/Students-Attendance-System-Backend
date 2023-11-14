@@ -6,3 +6,6 @@ spring:
 
   emailService:
     url: https://mail-merchant.onrender.com/sendmail/65532b69cda796f0b2579c84
+
+server:
+  port: 8080

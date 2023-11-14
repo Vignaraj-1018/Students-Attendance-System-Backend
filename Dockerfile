@@ -5,7 +5,7 @@ FROM openjdk:11-jre-slim
 WORKDIR /app
 
 # Copy the application JAR file into the container
-COPY target/attendance-system-0.0.1-SNAPSHOT.jar attendance-system-0.0.1-SNAPSHOT.jar
+COPY build/attendance-system-0.0.1-SNAPSHOT.jar attendance-system-0.0.1-SNAPSHOT.jar
 
 # Expose the port that the app will run on
 EXPOSE 8080

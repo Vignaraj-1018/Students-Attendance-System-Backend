@@ -1,8 +1,8 @@
 services:
-  - name: your-app
+  - name: attendance-system-0.0.1-SNAPSHOT
     plan: web
     env:
       - key: SPRING_PROFILES_ACTIVE
         value: production
     buildCommand: ./gradlew build
-    startCommand: java -Dserver.port=$PORT -jar your-app.jar
+    startCommand: java -Dserver.port=$PORT -jar attendance-system-0.0.1-SNAPSHOT.jar

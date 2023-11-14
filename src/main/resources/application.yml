@@ -1,0 +1,8 @@
+spring:
+  data:
+    mongodb:
+      uri : mongodb+srv://admin:Admin123@studentattendance.xutfpxe.mongodb.net/
+      database : Students-Attendance-System
+
+  emailService:
+    url: https://mail-merchant.onrender.com/sendmail/65532b69cda796f0b2579c84

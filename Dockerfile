@@ -4,8 +4,6 @@ FROM openjdk:11-jre-slim
 # Set the working directory in the container
 WORKDIR /app
 
-RUN mvn clean install
-
 # Copy the application JAR file into the container
 COPY build/attendance-system-0.0.1-SNAPSHOT.jar attendance-system-0.0.1-SNAPSHOT.jar
 

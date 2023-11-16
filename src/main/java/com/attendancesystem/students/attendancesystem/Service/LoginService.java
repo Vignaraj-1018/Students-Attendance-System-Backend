@@ -15,10 +15,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.Random;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 public class LoginService {
@@ -52,12 +52,20 @@ public class LoginService {
     public ResponseEntity<?> createUser(UserDetails userDetails) {
         try {
             if(getUserByUserEmail(userDetails.getUserEmail()) == null) {
-                String response = sendEmailOTP(userDetails);
-                if(response.equals("SUCCESS")){
+                Map<String, Object> response = sendEmailOTP(userDetails);
+                if(response.get("result").equals("SUCCESS")){
                     return addUser(userDetails);
                 }
                 else{
-                    return new ResponseEntity<>("Error in Creating the User",HttpStatus.INTERNAL_SERVER_ERROR);
+                    Exception e = (Exception) response.get("Exception");
+                    if(e instanceof ResourceAccessException){
+                        LOGGER.error("Email Service Down: " + userDetails.getUserEmail());
+                        return new ResponseEntity<>("Email Service Down",HttpStatus.GATEWAY_TIMEOUT);
+                    }
+                    else{
+                        LOGGER.error("Error in Sending the OTP: " + userDetails.getUserEmail());
+                        return new ResponseEntity<>("Error in Sending the OTP",HttpStatus.INTERNAL_SERVER_ERROR);
+                    }
                 }
             }
             else{
@@ -95,7 +103,7 @@ public class LoginService {
         return mongoTemplate.findOne(new Query(Criteria.where("userId").is(userId)),UserDetails.class);
     }
 
-    public String sendEmailOTP(UserDetails userDetails){
+    public Map<String, Object> sendEmailOTP(UserDetails userDetails){
 
         RestTemplate restTemplate = new RestTemplate(getClientHttpRequestFactory());
         String otp = generateOTP();
@@ -107,11 +115,16 @@ public class LoginService {
             ResponseEntity<String> responseEntity = restTemplate.postForEntity(emailServiceUrl,postObj, String.class);
             String responseBody = responseEntity.getBody();
             LOGGER.info("Response from external API: " + responseBody);
-            return "SUCCESS";
+            Map<String, Object> returnObject = new HashMap<>();
+            returnObject.put("result", "SUCCESS");
+            return returnObject;
         }
         catch (Exception e){
             LOGGER.error("Error in sending Email OTP to "+userDetails.getUserEmail());
-            return "FAILURE";
+            Map<String, Object> returnObject = new HashMap<>();
+            returnObject.put("result", "FAILURE");
+            returnObject.put("Exception",e);
+            return returnObject;
 
         }
 
@@ -149,7 +162,6 @@ public class LoginService {
     }
 
     public ResponseEntity<?> validateOtp(UserDetails userDetails) {
-        System.out.println(userDetails.toString());
         UserDetails userFromDB = getUserByUserId(userDetails.getUserId());
 
         if(userFromDB.getOTP().equals(userDetails.getOTP())){
@@ -169,20 +181,83 @@ public class LoginService {
     }
 
     public ResponseEntity<?> resendOtp(UserDetails userDetails) {
-        UserDetails userFromDB = getUserByUserId(userDetails.getUserId());
+        UserDetails userFromDB = getUserByUserEmail(userDetails.getUserEmail());
+        if(userFromDB == null){
+            LOGGER.info("User Not Found: " + userDetails.getUserEmail());
+            return new ResponseEntity<>("User Not Found",HttpStatus.NOT_FOUND);
+        }
         if(userFromDB.isAuthenticated()){
             LOGGER.info("User Already Authenticated: " + userFromDB.getUserId());
             return new ResponseEntity<>("User Already Authenticated",HttpStatus.CONFLICT);
         }
-        String response = sendEmailOTP(userFromDB);
-        upsertUser(userFromDB);
-        if(response.equals("SUCCESS")){
+        Map<String, Object> response = sendEmailOTP(userFromDB);
+        if(response.get("result").equals("SUCCESS")){
+            upsertUser(userFromDB);
             LOGGER.info("Resend OTP Successful: " + userFromDB.getUserId());
             return new ResponseEntity<>("Resend OTP Successful",HttpStatus.OK);
         }
         else{
-            LOGGER.error("Error in Resending the OTP: " + userFromDB.getUserEmail());
-            return new ResponseEntity<>("Error in Resending the OTP",HttpStatus.INTERNAL_SERVER_ERROR);
+            Exception e = (Exception) response.get("Exception");
+            System.out.println(e.toString());
+            if(e instanceof ResourceAccessException){
+                LOGGER.error("Email Service Down: " + userFromDB.getUserEmail());
+                return new ResponseEntity<>("Email Service Down",HttpStatus.GATEWAY_TIMEOUT);
+            }
+            else{
+                LOGGER.error("Error in Resending the OTP: " + userFromDB.getUserEmail());
+                return new ResponseEntity<>("Error in Resending the OTP",HttpStatus.INTERNAL_SERVER_ERROR);
+            }
+        }
+    }
+
+    public ResponseEntity<?> forgotPasswordRequest(UserDetails userDetails) {
+        UserDetails userFromDB = getUserByUserEmail(userDetails.getUserEmail());
+        if(userFromDB == null){
+            LOGGER.info("User Not Found: " + userDetails.getUserEmail());
+            return new ResponseEntity<>("User Not Found",HttpStatus.NOT_FOUND);
+        }
+        else{
+            System.out.println(userFromDB.toString());
+            Map<String, Object> response = sendEmailOTP(userFromDB);
+            if(response.get("result").equals("SUCCESS")){
+                upsertUser(userFromDB);
+                LOGGER.info("OTP Sent Successfully: " + userDetails.getUserEmail());
+                return new ResponseEntity<>(userFromDB,HttpStatus.OK);
+            }
+            else{
+                Exception e = (Exception) response.get("Exception");
+                System.out.println(e.toString());
+                if(e instanceof ResourceAccessException){
+                    LOGGER.error("Email Service Down: " + userFromDB.getUserEmail());
+                    return new ResponseEntity<>("Email Service Down",HttpStatus.GATEWAY_TIMEOUT);
+                }
+                else{
+                    LOGGER.error("Error in Sending the OTP: " + userFromDB.getUserEmail());
+                    return new ResponseEntity<>("Error in Sending the OTP",HttpStatus.INTERNAL_SERVER_ERROR);
+                }
+            }
+        }
+    }
+
+    public ResponseEntity<?> resetPassword(UserDetails userDetails) {
+        UserDetails userFromDB = getUserByUserId(userDetails.getUserId());
+        if(userFromDB == null){
+            LOGGER.info("User Not Found: " + userDetails.getUserEmail());
+            return new ResponseEntity<>("User Not Found",HttpStatus.NOT_FOUND);
+        }
+        else{
+            if(userFromDB.isAuthenticated()){
+                userFromDB.setPassword(userDetails.getPassword());
+                upsertUser(userFromDB);
+
+                LOGGER.info("Reset Password Successful: " + userDetails.getUserId());
+                return new ResponseEntity<>("Reset Password Successful",HttpStatus.OK);
+            }
+            else{
+                LOGGER.info("User is Not Authenticated: " + userDetails.getUserId());
+                return new ResponseEntity<>("User is not Authenticated",HttpStatus.NOT_ACCEPTABLE);
+            }
+
         }
     }
 }

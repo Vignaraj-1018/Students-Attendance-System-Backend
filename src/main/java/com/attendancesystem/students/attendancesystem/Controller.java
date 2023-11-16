@@ -45,4 +45,14 @@ public class Controller {
     public ResponseEntity<?> resendOtp(@RequestBody UserDetails userDetails){
         return loginService.resendOtp(userDetails);
     }
+
+    @PostMapping("/request/forgotPassword")
+    public ResponseEntity<?> forgotPasswordRequest(@RequestBody UserDetails userDetails){
+        return loginService.forgotPasswordRequest(userDetails);
+    }
+
+    @PostMapping("/resetPassword")
+    public ResponseEntity<?> resetPassword(@RequestBody UserDetails userDetails) {
+        return loginService.resetPassword(userDetails);
+    }
 }

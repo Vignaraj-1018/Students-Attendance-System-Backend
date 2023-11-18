@@ -31,8 +31,11 @@ public class LoginService {
     @Autowired
     private MongoTemplate mongoTemplate;
 
+    @Autowired
+    private SharedService sharedService;
+
     public ResponseEntity<?> authUser(UserDetails userDetails){
-        UserDetails userFromDB = getUserByUserEmail(userDetails.getUserEmail());
+        UserDetails userFromDB = sharedService.getUserByUserEmail(userDetails.getUserEmail());
         if( userFromDB == null){
             LOGGER.error("User Not Found" + userDetails.toString());
             return new ResponseEntity<>("User Not Found",HttpStatus.NOT_FOUND);
@@ -51,7 +54,7 @@ public class LoginService {
 
     public ResponseEntity<?> createUser(UserDetails userDetails) {
         try {
-            if(getUserByUserEmail(userDetails.getUserEmail()) == null) {
+            if(sharedService.getUserByUserEmail(userDetails.getUserEmail()) == null) {
                 Map<String, Object> response = sendEmailOTP(userDetails);
                 if(response.get("result").equals("SUCCESS")){
                     return addUser(userDetails);
@@ -93,14 +96,6 @@ public class LoginService {
         mongoTemplate.getConverter().write(userDetails, document);
         Update update = Update.fromDocument(document);
         mongoTemplate.upsert(query, update, UserDetails.class);
-    }
-
-    public UserDetails getUserByUserEmail(String userEmail){
-        return mongoTemplate.findOne(new Query(Criteria.where("userEmail").is(userEmail)),UserDetails.class);
-    }
-
-    public UserDetails getUserByUserId(String userId){
-        return mongoTemplate.findOne(new Query(Criteria.where("userId").is(userId)),UserDetails.class);
     }
 
     public Map<String, Object> sendEmailOTP(UserDetails userDetails){
@@ -162,7 +157,7 @@ public class LoginService {
     }
 
     public ResponseEntity<?> validateOtp(UserDetails userDetails) {
-        UserDetails userFromDB = getUserByUserId(userDetails.getUserId());
+        UserDetails userFromDB = sharedService.getUserByUserId(userDetails.getUserId());
 
         if(userFromDB.getOTP().equals(userDetails.getOTP())){
             if(userFromDB.isAuthenticated()){
@@ -181,7 +176,7 @@ public class LoginService {
     }
 
     public ResponseEntity<?> resendOtp(UserDetails userDetails) {
-        UserDetails userFromDB = getUserByUserEmail(userDetails.getUserEmail());
+        UserDetails userFromDB = sharedService.getUserByUserEmail(userDetails.getUserEmail());
         if(userFromDB == null){
             LOGGER.info("User Not Found: " + userDetails.getUserEmail());
             return new ResponseEntity<>("User Not Found",HttpStatus.NOT_FOUND);
@@ -211,7 +206,7 @@ public class LoginService {
     }
 
     public ResponseEntity<?> forgotPasswordRequest(UserDetails userDetails) {
-        UserDetails userFromDB = getUserByUserEmail(userDetails.getUserEmail());
+        UserDetails userFromDB = sharedService.getUserByUserEmail(userDetails.getUserEmail());
         if(userFromDB == null){
             LOGGER.info("User Not Found: " + userDetails.getUserEmail());
             return new ResponseEntity<>("User Not Found",HttpStatus.NOT_FOUND);
@@ -240,7 +235,7 @@ public class LoginService {
     }
 
     public ResponseEntity<?> resetPassword(UserDetails userDetails) {
-        UserDetails userFromDB = getUserByUserId(userDetails.getUserId());
+        UserDetails userFromDB = sharedService.getUserByUserId(userDetails.getUserId());
         if(userFromDB == null){
             LOGGER.info("User Not Found: " + userDetails.getUserEmail());
             return new ResponseEntity<>("User Not Found",HttpStatus.NOT_FOUND);

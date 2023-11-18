@@ -1,6 +1,8 @@
 package com.attendancesystem.students.attendancesystem;
 
+import com.attendancesystem.students.attendancesystem.Model.AttendanceDetails;
 import com.attendancesystem.students.attendancesystem.Model.UserDetails;
+import com.attendancesystem.students.attendancesystem.Service.AttendanceService;
 import com.attendancesystem.students.attendancesystem.Service.LoginService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -14,15 +16,12 @@ public class Controller {
     @Autowired
     private LoginService loginService;
 
+    @Autowired
+    private AttendanceService attendanceService;
+
     @GetMapping("/")
     public ResponseEntity<?> welcomeFunction(){
         System.out.println("Hello from the Welcome Function!");
-        return new ResponseEntity<>(HttpStatus.OK);
-    }
-
-    @GetMapping("/secured")
-    public ResponseEntity<?> securedFunction(){
-        System.out.println("Hello from the Secured Function!");
         return new ResponseEntity<>(HttpStatus.OK);
     }
 
@@ -55,4 +54,25 @@ public class Controller {
     public ResponseEntity<?> resetPassword(@RequestBody UserDetails userDetails) {
         return loginService.resetPassword(userDetails);
     }
+
+    @PutMapping("/update/attendance")
+    public ResponseEntity<?> updateAttendance(@RequestBody AttendanceDetails attendanceDetails){
+        return attendanceService.updateAttendance(attendanceDetails);
+    }
+
+    @DeleteMapping("/delete/attendance")
+    public ResponseEntity<?> deleteAttendance(@RequestParam String attendanceId ){
+        return attendanceService.deleteAttendance(attendanceId);
+    }
+
+    @GetMapping("/get/attendance")
+    public ResponseEntity<?> getSingleAttendance(@RequestParam String attendanceId){
+        return attendanceService.getSingleAttendance(attendanceId);
+    }
+
+    @GetMapping("/get/user/attendance")
+    public ResponseEntity<?> getSingleUserAllAttendance(@RequestParam String userId){
+        return attendanceService.getSingleUserAllAttendance(userId);
+    }
+
 }

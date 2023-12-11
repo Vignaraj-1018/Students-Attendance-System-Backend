@@ -30,5 +30,4 @@ target/
 
 ### VS Code ###
 .vscode/
-
-./build
+.build/

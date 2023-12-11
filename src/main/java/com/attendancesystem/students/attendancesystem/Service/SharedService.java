@@ -5,19 +5,37 @@ import com.attendancesystem.students.attendancesystem.Model.AttendanceDetails;
 import com.attendancesystem.students.attendancesystem.Model.UserDetails;
 import com.mongodb.client.result.DeleteResult;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
 
 @Service
 public class SharedService {
 
     @Autowired
     private MongoTemplate mongoTemplate;
+
+    @Value("${spring.smtp.host}")
+    private String mailHost;
+
+    @Value("${spring.smtp.port}")
+    private int mailPort;
+
+    @Value("${spring.smtp.username}")
+    private String mailUsername;
+
+    @Value("${spring.smtp.password}")
+    private String mailPassword;
+
 
     public UserDetails getUserByUserEmail(String userEmail){
         return mongoTemplate.findOne(new Query(Criteria.where("userEmail").is(userEmail)),UserDetails.class);
@@ -54,6 +72,24 @@ public class SharedService {
         criteriaList.add(Criteria.where("semester").is(semester));
         Criteria criteria = new Criteria().andOperator(criteriaList.toArray(new Criteria[0]));
         return new Query(criteria);
+    }
+
+    @Bean
+    public JavaMailSender getJavaMailSender() {
+        JavaMailSenderImpl mailSender = new JavaMailSenderImpl();
+        mailSender.setHost(mailHost);
+        mailSender.setPort(mailPort);
+
+        mailSender.setUsername(mailUsername);
+        mailSender.setPassword(mailPassword);
+
+        Properties props = mailSender.getJavaMailProperties();
+        props.put("mail.transport.protocol", "smtp");
+        props.put("mail.smtp.auth", "true");
+        props.put("mail.smtp.starttls.enable", "true");
+        props.put("mail.debug", "false");
+
+        return mailSender;
     }
 
 }

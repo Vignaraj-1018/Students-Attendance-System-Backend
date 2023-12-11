@@ -14,19 +14,17 @@ import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.ResourceAccessException;
-import org.springframework.web.client.RestTemplate;
 
+import javax.mail.internet.MimeMessage;
 import java.util.*;
 
 @Service
 public class LoginService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(LoginService.class);
-
-    @Value("${spring.emailService.url}")
-    private String emailServiceUrl;
 
     @Autowired
     private MongoTemplate mongoTemplate;
@@ -100,22 +98,18 @@ public class LoginService {
 
     public Map<String, Object> sendEmailOTP(UserDetails userDetails){
 
-        RestTemplate restTemplate = new RestTemplate(getClientHttpRequestFactory());
         String otp = generateOTP();
         userDetails.setOTP(otp);
         userDetails.setAuthenticated(false);
-        EmailValidate postObj = generateEmailMsg(otp,userDetails);
+        EmailValidate emailMsg = generateEmailMsg(otp,userDetails);
 
         try{
-            ResponseEntity<String> responseEntity = restTemplate.postForEntity(emailServiceUrl,postObj, String.class);
-            String responseBody = responseEntity.getBody();
-            LOGGER.info("Response from external API: " + responseBody);
+            sendEmail(emailMsg);
             Map<String, Object> returnObject = new HashMap<>();
             returnObject.put("result", "SUCCESS");
             return returnObject;
         }
         catch (Exception e){
-            LOGGER.error("Error in sending Email OTP to "+userDetails.getUserEmail());
             Map<String, Object> returnObject = new HashMap<>();
             returnObject.put("result", "FAILURE");
             returnObject.put("Exception",e);
@@ -151,7 +145,7 @@ public class LoginService {
                 .name(userDetails.getName())
                 .mail(userDetails.getUserEmail())
                 .subject("Welcome to Student Attendance System")
-                .message("Here's Your OTP Code for Email Validation: "+otp)
+                .message("<div style='padding:20px;'><div><span style='font-size:20px;'> Hello, <span style='font-size:20px; font-weight: bold;'>"+userDetails.getName()+"</span></span><h3 style='font-size:20px; font-weight: normal;'>Here's Your OTP Code for Email Validation: <span style='font-size:20px; font-weight: bold;' >"+userDetails.getOTP()+"</span></h3><h2></h2></div><div style='font-size:10px; border-width:1px 0px 0px 0px;border-style: solid; padding:5px; width:100%; margin-top:100px;'><span>Regards,<br/> Admin Student Attendance System</span><br/><span><a href='mailto:studattendsys@gmail.com' style='color:#FF6E31;'>studattendsys@gmail.com</a></span></div></div>")
                 .toOther(true)
                 .build();
     }
@@ -254,5 +248,25 @@ public class LoginService {
             }
 
         }
+    }
+
+    public void sendEmail(EmailValidate emailMsg){
+
+        LOGGER.info("Sending Email to "+emailMsg.getMail());
+        try{
+            MimeMessage mimeMessage = sharedService.getJavaMailSender().createMimeMessage();
+            MimeMessageHelper messageHelper = new MimeMessageHelper(mimeMessage, true, "utf-8");
+            mimeMessage.setContent(emailMsg.getMessage(), "text/html;charset=utf-8");
+            messageHelper.setFrom("noreply@baeldung.com");
+            messageHelper.setSubject(emailMsg.getSubject());
+            messageHelper.setTo(emailMsg.getMail());
+            sharedService.getJavaMailSender().send(mimeMessage);
+
+            LOGGER.info("Email Sent Successfully");
+        }
+        catch (Exception e){
+            LOGGER.info("Exception in Sending Message: "+e);
+        }
+
     }
 }

@@ -22,7 +22,7 @@ public class Controller {
     @GetMapping("/")
     public ResponseEntity<?> welcomeFunction(){
         System.out.println("Hello from the Welcome Function!");
-        return new ResponseEntity<>(HttpStatus.OK);
+        return new ResponseEntity<>("Ok",HttpStatus.OK);
     }
 
     @PostMapping("/login")

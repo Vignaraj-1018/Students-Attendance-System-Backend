@@ -15,10 +15,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.ResourceAccessException;
 
 import javax.mail.internet.MimeMessage;
+import java.security.SecureRandom;
 import java.util.*;
 
 @Service
@@ -35,16 +37,16 @@ public class LoginService {
     public ResponseEntity<?> authUser(UserDetails userDetails){
         UserDetails userFromDB = sharedService.getUserByUserEmail(userDetails.getUserEmail());
         if( userFromDB == null){
-            LOGGER.error("User Not Found" + userDetails.toString());
+            LOGGER.error("User Not Found: " + userDetails.getUserEmail());
             return new ResponseEntity<>("User Not Found",HttpStatus.NOT_FOUND);
         }
         else{
-            if(userFromDB.getPassword().equals(userDetails.getPassword())){
-                LOGGER.info("User Login Successful" + userDetails.toString());
+            if(checkPassword(userDetails.getPassword(),userFromDB.getPassword())){
+                LOGGER.info("User Login Successful: " + userDetails.getUserEmail());
                 return new ResponseEntity<>(userFromDB,HttpStatus.OK);
             }
             else {
-                LOGGER.error("User Password Wrong" + userDetails.toString());
+                LOGGER.error("User Password Wrong: " + userDetails.getUserEmail());
                 return new ResponseEntity<>("User Password Wrong",HttpStatus.UNAUTHORIZED);
             }
         }
@@ -70,12 +72,12 @@ public class LoginService {
                 }
             }
             else{
-                LOGGER.error("User Already Exist" + userDetails.toString());
+                LOGGER.error("User Already Exist: " + userDetails.getUserEmail());
                 return new ResponseEntity<>("User Already Exist",HttpStatus.CONFLICT);
             }
         }
         catch (Exception e){
-            LOGGER.error("Error in Creating the User" + userDetails.toString());
+            LOGGER.error("Error in Creating the User: " + userDetails.getUserEmail());
             return new ResponseEntity<>("Error in Creating the User",HttpStatus.INTERNAL_SERVER_ERROR);
 
         }
@@ -83,9 +85,20 @@ public class LoginService {
 
     public ResponseEntity<?> addUser(UserDetails userDetails){
         userDetails.setUserId(UUID.randomUUID().toString());
+        userDetails.setPassword(encryptPassword(userDetails.getPassword()));
         upsertUser(userDetails);
-        LOGGER.info("User Created Successfully" + userDetails.toString());
+        LOGGER.info("User Created Successfully: " + userDetails.getUserEmail());
         return new ResponseEntity<>(userDetails,HttpStatus.CREATED);
+    }
+
+    private String encryptPassword(String password) {
+        BCryptPasswordEncoder bCryptPasswordEncoder = new BCryptPasswordEncoder(10, new SecureRandom());
+        return bCryptPasswordEncoder.encode(password);
+    }
+
+    private boolean checkPassword(String password, String userPassword){
+        BCryptPasswordEncoder bCryptPasswordEncoder = new BCryptPasswordEncoder(10, new SecureRandom());
+        return bCryptPasswordEncoder.matches(password,userPassword);
     }
 
     public void upsertUser(UserDetails userDetails){
@@ -187,7 +200,6 @@ public class LoginService {
         }
         else{
             Exception e = (Exception) response.get("Exception");
-            System.out.println(e.toString());
             if(e instanceof ResourceAccessException){
                 LOGGER.error("Email Service Down: " + userFromDB.getUserEmail());
                 return new ResponseEntity<>("Email Service Down",HttpStatus.GATEWAY_TIMEOUT);
@@ -206,7 +218,6 @@ public class LoginService {
             return new ResponseEntity<>("User Not Found",HttpStatus.NOT_FOUND);
         }
         else{
-            System.out.println(userFromDB.toString());
             Map<String, Object> response = sendEmailOTP(userFromDB);
             if(response.get("result").equals("SUCCESS")){
                 upsertUser(userFromDB);
@@ -215,7 +226,6 @@ public class LoginService {
             }
             else{
                 Exception e = (Exception) response.get("Exception");
-                System.out.println(e.toString());
                 if(e instanceof ResourceAccessException){
                     LOGGER.error("Email Service Down: " + userFromDB.getUserEmail());
                     return new ResponseEntity<>("Email Service Down",HttpStatus.GATEWAY_TIMEOUT);
@@ -236,7 +246,7 @@ public class LoginService {
         }
         else{
             if(userFromDB.isAuthenticated()){
-                userFromDB.setPassword(userDetails.getPassword());
+                userFromDB.setPassword(encryptPassword(userDetails.getPassword()));
                 upsertUser(userFromDB);
 
                 LOGGER.info("Reset Password Successful: " + userDetails.getUserId());
@@ -262,7 +272,7 @@ public class LoginService {
             messageHelper.setTo(emailMsg.getMail());
             sharedService.getJavaMailSender().send(mimeMessage);
 
-            LOGGER.info("Email Sent Successfully");
+            LOGGER.info("Email Sent Successfully: " + emailMsg.getMail());
         }
         catch (Exception e){
             LOGGER.info("Exception in Sending Message: "+e);

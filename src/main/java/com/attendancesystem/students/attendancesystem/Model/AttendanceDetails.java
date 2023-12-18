@@ -7,6 +7,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.util.ArrayList;
+import java.util.Date;
 
 @Document(collection = "attendance_details")
 @Data
@@ -17,5 +18,6 @@ public class AttendanceDetails {
     public String userId;
     public String academicYear;
     public int semester;
+    public Date lastModifiedDate;
     public ArrayList<SubjectList> subjectList;
 }

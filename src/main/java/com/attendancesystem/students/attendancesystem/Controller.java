@@ -87,7 +87,7 @@ public class Controller {
 
     @PostMapping("/sendNotification")
     public ResponseEntity<?> sendNotificationForAllUser(@RequestBody EmailValidate emailValidate){
-        return notificationService.sendNotificationToAllUser(emailValidate);
+        return notificationService.triggerNotificationToAllUser(emailValidate);
     }
 
     @PostMapping("/enableNotification")
@@ -98,6 +98,11 @@ public class Controller {
     @PostMapping("/disableNotification")
     public ResponseEntity<?> disableNotificationForUser(@RequestBody UserDetails userDetails){
         return notificationService.disableNotificationForUser(userDetails);
+    }
+
+    @GetMapping("/sendRemainder")
+    public ResponseEntity<?> dailyNotification(){
+        return notificationService.triggerRemainderScheduler();
     }
 
 }

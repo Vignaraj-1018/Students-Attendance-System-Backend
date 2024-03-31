@@ -7,7 +7,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -22,7 +21,33 @@ public class NotificationService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(NotificationService.class);
 
-    public ResponseEntity<?> sendNotificationToAllUser(EmailValidate notificationInfo){
+    public ResponseEntity<?> triggerRemainderScheduler(){
+        try{
+            Thread backgroundThread = new Thread(this::dailyNotification);
+            backgroundThread.start();
+            LOGGER.info("Scheduler Triggered for Sending Remainder");
+            return new ResponseEntity<>("Successfully Triggered Scheduler",HttpStatus.OK);
+        }
+        catch (Exception e){
+            LOGGER.info("Error in Triggering the Scheduler"+ e.toString());
+            return new ResponseEntity<>("Error in Triggering the Scheduler",HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public ResponseEntity<?> triggerNotificationToAllUser(EmailValidate notificationInfo){
+        try{
+            Thread backgroundThread = new Thread(()->sendNotificationToAllUser(notificationInfo));
+            backgroundThread.start();
+            LOGGER.info("Triggered method to send Notification All Users Successfully");
+            return new ResponseEntity<>("Triggered method to send Notification All Users Successfully",HttpStatus.OK);
+        }
+        catch (Exception e){
+            LOGGER.info("Failed to Trigger method to send Notification"+ e.toString());
+            return new ResponseEntity<>("Failed to Trigger method to send Notification",HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public void sendNotificationToAllUser(EmailValidate notificationInfo){
         try{
     //        UserDetails allUsers = sharedService.getUserByUserEmail("vignaraj03@gmail.com");
             List<UserDetails> allUsers = sharedService.getAllUsers();
@@ -38,15 +63,12 @@ public class NotificationService {
                 sharedService.sendEmail(emailMsg);
             });
             LOGGER.info("Notification Sent to All Users Successfully");
-            return new ResponseEntity<>(HttpStatus.OK);
         }
         catch (Exception e){
             LOGGER.info("Error While Sending Notification "+e.toString());
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
-    @Scheduled(cron = "0 0 19 * * MON-SAT",zone = "Asia/Kolkata")
     public void dailyNotification(){
         LOGGER.info("Scheduler Triggered");
         List<UserDetails> allUsers = sharedService.getAllUsers();

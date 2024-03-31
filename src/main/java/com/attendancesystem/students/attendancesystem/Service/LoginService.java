@@ -2,24 +2,17 @@ package com.attendancesystem.students.attendancesystem.Service;
 
 import com.attendancesystem.students.attendancesystem.Model.EmailValidate;
 import com.attendancesystem.students.attendancesystem.Model.UserDetails;
-import org.bson.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.query.Criteria;
-import org.springframework.data.mongodb.core.query.Query;
-import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
-import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.ResourceAccessException;
 
-import javax.mail.internet.MimeMessage;
 import java.security.SecureRandom;
 import java.util.*;
 
@@ -83,10 +76,26 @@ public class LoginService {
         }
     }
 
+    public ResponseEntity<?> updateUser(UserDetails userDetails){
+        UserDetails userFromDB = sharedService.getUserByUserId(userDetails.getUserId());
+        if(userFromDB == null){
+            LOGGER.info("User Not Found: " + userDetails.getUserId());
+            return new ResponseEntity<>("User Not Found",HttpStatus.NOT_FOUND);
+        }
+        else{
+            if(userDetails.getName()!=null){
+                userFromDB.setName(userDetails.getName());
+            }
+            sharedService.upsertUser(userFromDB);
+            LOGGER.info("User Updated Successfully: " + userDetails.getUserId());
+            return new ResponseEntity<>("User Updated Successfully",HttpStatus.OK);
+        }
+    }
+
     public ResponseEntity<?> addUser(UserDetails userDetails){
         userDetails.setUserId(UUID.randomUUID().toString());
         userDetails.setPassword(encryptPassword(userDetails.getPassword()));
-        upsertUser(userDetails);
+        sharedService.upsertUser(userDetails);
         LOGGER.info("User Created Successfully: " + userDetails.getUserEmail());
         return new ResponseEntity<>(userDetails,HttpStatus.CREATED);
     }
@@ -101,14 +110,6 @@ public class LoginService {
         return bCryptPasswordEncoder.matches(password,userPassword);
     }
 
-    public void upsertUser(UserDetails userDetails){
-        Query query = new Query(Criteria.where("userId").is(userDetails.getUserId()).andOperator(Criteria.where("userEmail").is(userDetails.getUserEmail())));
-        Document document = new Document();
-        mongoTemplate.getConverter().write(userDetails, document);
-        Update update = Update.fromDocument(document);
-        mongoTemplate.upsert(query, update, UserDetails.class);
-    }
-
     public Map<String, Object> sendEmailOTP(UserDetails userDetails){
 
         String otp = generateOTP();
@@ -117,7 +118,7 @@ public class LoginService {
         EmailValidate emailMsg = generateEmailMsg(otp,userDetails);
 
         try{
-            sendEmail(emailMsg);
+            sharedService.sendEmail(emailMsg);
             Map<String, Object> returnObject = new HashMap<>();
             returnObject.put("result", "SUCCESS");
             return returnObject;
@@ -172,7 +173,7 @@ public class LoginService {
                 return new ResponseEntity<>("User Already Authenticated",HttpStatus.NOT_ACCEPTABLE);
             }
             userFromDB.setAuthenticated(true);
-            upsertUser(userFromDB);
+            sharedService.upsertUser(userFromDB);
             LOGGER.info("OTP Validation Successful: " + userFromDB.getUserId());
             return new ResponseEntity<>(userFromDB,HttpStatus.OK);
         }
@@ -194,7 +195,7 @@ public class LoginService {
         }
         Map<String, Object> response = sendEmailOTP(userFromDB);
         if(response.get("result").equals("SUCCESS")){
-            upsertUser(userFromDB);
+            sharedService.upsertUser(userFromDB);
             LOGGER.info("Resend OTP Successful: " + userFromDB.getUserId());
             return new ResponseEntity<>("Resend OTP Successful",HttpStatus.OK);
         }
@@ -220,7 +221,7 @@ public class LoginService {
         else{
             Map<String, Object> response = sendEmailOTP(userFromDB);
             if(response.get("result").equals("SUCCESS")){
-                upsertUser(userFromDB);
+                sharedService.upsertUser(userFromDB);
                 LOGGER.info("OTP Sent Successfully: " + userDetails.getUserEmail());
                 return new ResponseEntity<>(userFromDB,HttpStatus.OK);
             }
@@ -247,7 +248,7 @@ public class LoginService {
         else{
             if(userFromDB.isAuthenticated()){
                 userFromDB.setPassword(encryptPassword(userDetails.getPassword()));
-                upsertUser(userFromDB);
+                sharedService.upsertUser(userFromDB);
 
                 LOGGER.info("Reset Password Successful: " + userDetails.getUserId());
                 return new ResponseEntity<>("Reset Password Successful",HttpStatus.OK);
@@ -258,25 +259,5 @@ public class LoginService {
             }
 
         }
-    }
-
-    public void sendEmail(EmailValidate emailMsg){
-
-        LOGGER.info("Sending Email to "+emailMsg.getMail());
-        try{
-            MimeMessage mimeMessage = sharedService.getJavaMailSender().createMimeMessage();
-            MimeMessageHelper messageHelper = new MimeMessageHelper(mimeMessage, true, "utf-8");
-            mimeMessage.setContent(emailMsg.getMessage(), "text/html;charset=utf-8");
-            messageHelper.setFrom("noreply@baeldung.com");
-            messageHelper.setSubject(emailMsg.getSubject());
-            messageHelper.setTo(emailMsg.getMail());
-            sharedService.getJavaMailSender().send(mimeMessage);
-
-            LOGGER.info("Email Sent Successfully: " + emailMsg.getMail());
-        }
-        catch (Exception e){
-            LOGGER.info("Exception in Sending Message: "+e);
-        }
-
     }
 }

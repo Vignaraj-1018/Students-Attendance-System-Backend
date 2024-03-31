@@ -8,7 +8,7 @@ spring:
     host: smtp.gmail.com
     port: 587
     username: studattendsys@gmail.com
-    password: qbqtpjcwyyqyqowf
+    password: igkapbrrlfsotgwa
 
 server:
   port: 8080

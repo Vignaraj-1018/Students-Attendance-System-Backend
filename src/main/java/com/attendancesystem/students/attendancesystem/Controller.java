@@ -1,9 +1,11 @@
 package com.attendancesystem.students.attendancesystem;
 
 import com.attendancesystem.students.attendancesystem.Model.AttendanceDetails;
+import com.attendancesystem.students.attendancesystem.Model.EmailValidate;
 import com.attendancesystem.students.attendancesystem.Model.UserDetails;
 import com.attendancesystem.students.attendancesystem.Service.AttendanceService;
 import com.attendancesystem.students.attendancesystem.Service.LoginService;
+import com.attendancesystem.students.attendancesystem.Service.NotificationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +21,9 @@ public class Controller {
     @Autowired
     private AttendanceService attendanceService;
 
+    @Autowired
+    private NotificationService notificationService;
+
     @GetMapping("/")
     public ResponseEntity<?> welcomeFunction(){
         System.out.println("Hello from the Welcome Function!");
@@ -33,6 +38,11 @@ public class Controller {
     @PostMapping("/signup")
     public ResponseEntity<?> createUser(@RequestBody UserDetails userDetails){
         return loginService.createUser(userDetails);
+    }
+
+    @PostMapping("/updateUser")
+    public ResponseEntity<?> updateUser(@RequestBody UserDetails userDetails){
+        return loginService.updateUser(userDetails);
     }
 
     @PostMapping("/validate/otp")
@@ -73,6 +83,21 @@ public class Controller {
     @GetMapping("/get/user/attendance")
     public ResponseEntity<?> getSingleUserAllAttendance(@RequestParam String userId){
         return attendanceService.getSingleUserAllAttendance(userId);
+    }
+
+    @PostMapping("/sendNotification")
+    public ResponseEntity<?> sendNotificationForAllUser(@RequestBody EmailValidate emailValidate){
+        return notificationService.sendNotificationToAllUser(emailValidate);
+    }
+
+    @PostMapping("/enableNotification")
+    public ResponseEntity<?> enableNotificationForUser(@RequestBody UserDetails userDetails){
+        return notificationService.enableNotificationForUser(userDetails);
+    }
+
+    @PostMapping("/disableNotification")
+    public ResponseEntity<?> disableNotificationForUser(@RequestBody UserDetails userDetails){
+        return notificationService.disableNotificationForUser(userDetails);
     }
 
 }

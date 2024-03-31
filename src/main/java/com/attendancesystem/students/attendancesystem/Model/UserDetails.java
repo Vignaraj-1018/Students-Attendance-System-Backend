@@ -17,4 +17,5 @@ public class UserDetails {
     public String password;
     public boolean authenticated;
     public String OTP;
+    public Boolean notificationEnabled;
 }

@@ -3,7 +3,6 @@ package com.attendancesystem.students.attendancesystem.Service;
 import com.attendancesystem.students.attendancesystem.Model.AttendanceDetails;
 import com.attendancesystem.students.attendancesystem.Model.UserDetails;
 import com.mongodb.client.result.DeleteResult;
-import org.apache.catalina.User;
 import org.bson.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

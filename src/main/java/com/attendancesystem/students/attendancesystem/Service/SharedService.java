@@ -2,18 +2,24 @@ package com.attendancesystem.students.attendancesystem.Service;
 
 
 import com.attendancesystem.students.attendancesystem.Model.AttendanceDetails;
+import com.attendancesystem.students.attendancesystem.Model.EmailValidate;
 import com.attendancesystem.students.attendancesystem.Model.UserDetails;
 import com.mongodb.client.result.DeleteResult;
+import org.bson.Document;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Bean;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
+import javax.mail.internet.MimeMessage;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
@@ -36,6 +42,13 @@ public class SharedService {
     @Value("${spring.smtp.password}")
     private String mailPassword;
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(SharedService.class);
+
+
+
+    public List<UserDetails> getAllUsers(){
+        return mongoTemplate.findAll(UserDetails.class);
+    }
 
     public UserDetails getUserByUserEmail(String userEmail){
         return mongoTemplate.findOne(new Query(Criteria.where("userEmail").is(userEmail)),UserDetails.class);
@@ -74,7 +87,34 @@ public class SharedService {
         return new Query(criteria);
     }
 
-    @Bean
+    public void upsertUser(UserDetails userDetails){
+        Query query = new Query(Criteria.where("userId").is(userDetails.getUserId()).andOperator(Criteria.where("userEmail").is(userDetails.getUserEmail())));
+        Document document = new Document();
+        mongoTemplate.getConverter().write(userDetails, document);
+        Update update = Update.fromDocument(document);
+        mongoTemplate.upsert(query, update, UserDetails.class);
+    }
+
+    public void sendEmail(EmailValidate emailMsg){
+
+        LOGGER.info("Sending Email to "+emailMsg.getMail());
+        try{
+            MimeMessage mimeMessage = getJavaMailSender().createMimeMessage();
+            MimeMessageHelper messageHelper = new MimeMessageHelper(mimeMessage, true, "utf-8");
+            mimeMessage.setContent(emailMsg.getMessage(), "text/html;charset=utf-8");
+            messageHelper.setFrom("noreply@baeldung.com");
+            messageHelper.setSubject(emailMsg.getSubject());
+            messageHelper.setTo(emailMsg.getMail());
+            getJavaMailSender().send(mimeMessage);
+
+            LOGGER.info("Email Sent Successfully: " + emailMsg.getMail());
+        }
+        catch (Exception e){
+            LOGGER.info("Exception in Sending Message: "+e);
+        }
+
+    }
+
     public JavaMailSender getJavaMailSender() {
         JavaMailSenderImpl mailSender = new JavaMailSenderImpl();
         mailSender.setHost(mailHost);

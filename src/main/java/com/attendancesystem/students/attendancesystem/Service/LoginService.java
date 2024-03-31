@@ -28,6 +28,10 @@ public class LoginService {
     private SharedService sharedService;
 
     public ResponseEntity<?> authUser(UserDetails userDetails){
+        if(userDetails.getPassword()==null){
+            LOGGER.error("User Password Not Found: " + userDetails.getUserEmail());
+            return new ResponseEntity<>("User Password Not Found",HttpStatus.NOT_FOUND);
+        }
         UserDetails userFromDB = sharedService.getUserByUserEmail(userDetails.getUserEmail());
         if( userFromDB == null){
             LOGGER.error("User Not Found: " + userDetails.getUserEmail());

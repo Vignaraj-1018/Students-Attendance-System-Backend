@@ -6,6 +6,7 @@ import com.attendancesystem.students.attendancesystem.Model.UserDetails;
 import com.attendancesystem.students.attendancesystem.Service.AttendanceService;
 import com.attendancesystem.students.attendancesystem.Service.LoginService;
 import com.attendancesystem.students.attendancesystem.Service.NotificationService;
+import com.attendancesystem.students.attendancesystem.Service.SharedService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,6 +24,9 @@ public class Controller {
 
     @Autowired
     private NotificationService notificationService;
+
+    @Autowired
+    private SharedService sharedService;
 
     @GetMapping("/")
     public ResponseEntity<?> welcomeFunction(){
@@ -104,5 +108,11 @@ public class Controller {
     public ResponseEntity<?> dailyNotification(){
         return notificationService.triggerRemainderScheduler();
     }
+
+    @PostMapping("/contactMe")
+    public ResponseEntity<?> contactMe(@RequestBody EmailValidate emailValidate){
+        return sharedService.contactMe(emailValidate);
+    }
+
 
 }

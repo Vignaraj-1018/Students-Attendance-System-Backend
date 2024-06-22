@@ -1,14 +1,20 @@
 package com.attendancesystem.students.attendancesystem.Service;
 
+import com.attendancesystem.students.attendancesystem.Config.Jwt.JwtUtils;
 import com.attendancesystem.students.attendancesystem.Model.EmailValidate;
+import com.attendancesystem.students.attendancesystem.Model.LoginResponse;
 import com.attendancesystem.students.attendancesystem.Model.UserDetails;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.ResourceAccessException;
@@ -22,10 +28,13 @@ public class LoginService {
     private static final Logger LOGGER = LoggerFactory.getLogger(LoginService.class);
 
     @Autowired
-    private MongoTemplate mongoTemplate;
+    private SharedService sharedService;
 
     @Autowired
-    private SharedService sharedService;
+    private AuthenticationManager authenticationManager;
+
+    @Autowired
+    private JwtUtils jwtUtils;
 
     public ResponseEntity<?> authUser(UserDetails userDetails){
         if(userDetails.getPassword()==null){
@@ -47,6 +56,50 @@ public class LoginService {
                 return new ResponseEntity<>("User Password Wrong",HttpStatus.UNAUTHORIZED);
             }
         }
+    }
+
+    public ResponseEntity<?> loginUser(UserDetails userDetails){
+        String jwtToken = authenticateUser(userDetails);
+        if (!Objects.equals(jwtToken, "AUTH_FAILED")) {
+            UserDetails userFromDB = sharedService.getUserByUserEmail(userDetails.getUserEmail());
+            LoginResponse loginResponse = new LoginResponse(userFromDB, jwtToken);
+            return new ResponseEntity<>(loginResponse, HttpStatus.OK);
+        }
+        else{
+            LOGGER.error("User Login Failed: {}", userDetails.getUserEmail());
+            return new ResponseEntity<>("User Login Failed",HttpStatus.UNAUTHORIZED);
+        }
+    }
+
+    public String authenticateUser(UserDetails userDetails){
+        Authentication authentication;
+        try {
+            authentication = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(userDetails.getUserEmail(), userDetails.getPassword()));
+        } catch (AuthenticationException exception) {
+            return "AUTH_FAILED";
+        }
+
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+
+        org.springframework.security.core.userdetails.UserDetails user = (org.springframework.security.core.userdetails.UserDetails) authentication.getPrincipal();
+        String jwtToken = jwtUtils.generateTokenFromUsername(user);
+        LOGGER.info("User Authentication Successful: {}", user.getUsername());
+        return jwtToken;
+    }
+
+    public ResponseEntity<?> signUpUser(UserDetails userDetails){
+        Map<String, Object> userCredentials= new HashMap<>();
+        userCredentials.put("userEmail",userDetails.getUserEmail());
+        userCredentials.put("password",userDetails.getPassword());
+        ResponseEntity<?> response = createUser(userDetails);
+        if(response.getStatusCode() == HttpStatus.CREATED){
+            userDetails.setPassword(userCredentials.get("password").toString());
+            return loginUser(userDetails);
+        }
+        else{
+            return response;
+        }
+
     }
 
     public ResponseEntity<?> createUser(UserDetails userDetails) {
@@ -99,6 +152,7 @@ public class LoginService {
     public ResponseEntity<?> addUser(UserDetails userDetails){
         userDetails.setUserId(UUID.randomUUID().toString());
         userDetails.setPassword(encryptPassword(userDetails.getPassword()));
+        userDetails.setRole(Collections.singleton("ROLE_USER"));
         sharedService.upsertUser(userDetails);
         LOGGER.info("User Created Successfully: " + userDetails.getUserEmail());
         return new ResponseEntity<>(userDetails,HttpStatus.CREATED);
@@ -169,8 +223,8 @@ public class LoginService {
     }
 
     public ResponseEntity<?> validateOtp(UserDetails userDetails) {
-        UserDetails userFromDB = sharedService.getUserByUserId(userDetails.getUserId());
-
+        UserDetails userFromDB = sharedService.getUserByUserEmail(userDetails.getUserEmail());
+        System.out.println(userFromDB);
         if(userFromDB.getOTP().equals(userDetails.getOTP())){
             if(userFromDB.isAuthenticated()){
                 LOGGER.error("User Already Authenticated: " + userFromDB.getUserId());
@@ -179,7 +233,7 @@ public class LoginService {
             userFromDB.setAuthenticated(true);
             sharedService.upsertUser(userFromDB);
             LOGGER.info("OTP Validation Successful: " + userFromDB.getUserId());
-            return new ResponseEntity<>(userFromDB,HttpStatus.OK);
+            return new ResponseEntity<>("OTP Validation Successful",HttpStatus.OK);
         }
         else {
             LOGGER.error("User OTP Mismatch: " + userFromDB.getUserId());
@@ -227,7 +281,7 @@ public class LoginService {
             if(response.get("result").equals("SUCCESS")){
                 sharedService.upsertUser(userFromDB);
                 LOGGER.info("OTP Sent Successfully: " + userDetails.getUserEmail());
-                return new ResponseEntity<>(userFromDB,HttpStatus.OK);
+                return new ResponseEntity<>("OTP Sent Successfully, Validate Email to Continue",HttpStatus.OK);
             }
             else{
                 Exception e = (Exception) response.get("Exception");
@@ -244,7 +298,7 @@ public class LoginService {
     }
 
     public ResponseEntity<?> resetPassword(UserDetails userDetails) {
-        UserDetails userFromDB = sharedService.getUserByUserId(userDetails.getUserId());
+        UserDetails userFromDB = sharedService.getUserByUserEmail(userDetails.getUserEmail());
         if(userFromDB == null){
             LOGGER.info("User Not Found: " + userDetails.getUserEmail());
             return new ResponseEntity<>("User Not Found",HttpStatus.NOT_FOUND);

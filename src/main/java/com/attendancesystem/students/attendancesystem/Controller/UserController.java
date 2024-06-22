@@ -1,9 +1,7 @@
-package com.attendancesystem.students.attendancesystem;
+package com.attendancesystem.students.attendancesystem.Controller;
 
-import com.attendancesystem.students.attendancesystem.Model.AttendanceDetails;
 import com.attendancesystem.students.attendancesystem.Model.EmailValidate;
 import com.attendancesystem.students.attendancesystem.Model.UserDetails;
-import com.attendancesystem.students.attendancesystem.Service.AttendanceService;
 import com.attendancesystem.students.attendancesystem.Service.LoginService;
 import com.attendancesystem.students.attendancesystem.Service.NotificationService;
 import com.attendancesystem.students.attendancesystem.Service.SharedService;
@@ -13,14 +11,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
+@RequestMapping("/user")
 @CrossOrigin(origins = "*", allowedHeaders = "*")
-public class Controller {
+public class UserController {
 
     @Autowired
     private LoginService loginService;
-
-    @Autowired
-    private AttendanceService attendanceService;
 
     @Autowired
     private NotificationService notificationService;
@@ -28,38 +24,39 @@ public class Controller {
     @Autowired
     private SharedService sharedService;
 
-    @GetMapping("/")
+
+    @GetMapping("/home")
     public ResponseEntity<?> welcomeFunction(){
-        System.out.println("Hello from the Welcome Function!");
-        return new ResponseEntity<>("Ok",HttpStatus.OK);
+        System.out.println("Hello from the Version 2 Application!");
+        return new ResponseEntity<>("Ok", HttpStatus.OK);
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> authUser(@RequestBody UserDetails userDetails){
-        return loginService.authUser(userDetails);
+    public ResponseEntity<?> authenticateUser(@RequestBody UserDetails userDetails) {
+        return loginService.loginUser(userDetails);
     }
 
     @PostMapping("/signup")
-    public ResponseEntity<?> createUser(@RequestBody UserDetails userDetails){
-        return loginService.createUser(userDetails);
+    public ResponseEntity<?> registerUser(@RequestBody UserDetails userDetails) {
+        return loginService.signUpUser(userDetails);
     }
 
-    @PostMapping("/updateUser")
-    public ResponseEntity<?> updateUser(@RequestBody UserDetails userDetails){
+    @PostMapping("/update")
+    public ResponseEntity<?> updateUser(@RequestBody UserDetails userDetails) {
         return loginService.updateUser(userDetails);
     }
 
-    @PostMapping("/validate/otp")
+    @PostMapping("/validateOtp")
     public ResponseEntity<?> validateOtp(@RequestBody UserDetails userDetails){
         return loginService.validateOtp(userDetails);
     }
 
-    @PostMapping("/resend/otp")
+    @PostMapping("/resendOtp")
     public ResponseEntity<?> resendOtp(@RequestBody UserDetails userDetails){
         return loginService.resendOtp(userDetails);
     }
 
-    @PostMapping("/request/forgotPassword")
+    @PostMapping("/forgotPassword")
     public ResponseEntity<?> forgotPasswordRequest(@RequestBody UserDetails userDetails){
         return loginService.forgotPasswordRequest(userDetails);
     }
@@ -67,31 +64,6 @@ public class Controller {
     @PostMapping("/resetPassword")
     public ResponseEntity<?> resetPassword(@RequestBody UserDetails userDetails) {
         return loginService.resetPassword(userDetails);
-    }
-
-    @PutMapping("/update/attendance")
-    public ResponseEntity<?> updateAttendance(@RequestBody AttendanceDetails attendanceDetails){
-        return attendanceService.updateAttendance(attendanceDetails);
-    }
-
-    @DeleteMapping("/delete/attendance")
-    public ResponseEntity<?> deleteAttendance(@RequestParam String attendanceId ){
-        return attendanceService.deleteAttendance(attendanceId);
-    }
-
-    @GetMapping("/get/attendance")
-    public ResponseEntity<?> getSingleAttendance(@RequestParam String attendanceId){
-        return attendanceService.getSingleAttendance(attendanceId);
-    }
-
-    @GetMapping("/get/user/attendance")
-    public ResponseEntity<?> getSingleUserAllAttendance(@RequestParam String userId){
-        return attendanceService.getSingleUserAllAttendance(userId);
-    }
-
-    @PostMapping("/sendNotification")
-    public ResponseEntity<?> sendNotificationForAllUser(@RequestBody EmailValidate emailValidate){
-        return notificationService.triggerNotificationToAllUser(emailValidate);
     }
 
     @PostMapping("/enableNotification")
@@ -104,15 +76,9 @@ public class Controller {
         return notificationService.disableNotificationForUser(userDetails);
     }
 
-    @GetMapping("/sendRemainder")
-    public ResponseEntity<?> dailyNotification(){
-        return notificationService.triggerRemainderScheduler();
-    }
-
     @PostMapping("/contactMe")
     public ResponseEntity<?> contactMe(@RequestBody EmailValidate emailValidate){
         return sharedService.contactMe(emailValidate);
     }
-
 
 }

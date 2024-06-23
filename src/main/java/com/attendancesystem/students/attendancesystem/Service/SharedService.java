@@ -99,7 +99,7 @@ public class SharedService {
 
     public void sendEmail(EmailValidate emailMsg){
 
-        LOGGER.info("Sending Email to "+emailMsg.getMail());
+        LOGGER.info("Sending Email to {}", emailMsg.getMail());
         try{
             MimeMessage mimeMessage = getJavaMailSender().createMimeMessage();
             MimeMessageHelper messageHelper = new MimeMessageHelper(mimeMessage, true, "utf-8");
@@ -109,10 +109,10 @@ public class SharedService {
             messageHelper.setTo(emailMsg.getMail());
             getJavaMailSender().send(mimeMessage);
 
-            LOGGER.info("Email Sent Successfully: " + emailMsg.getMail());
+            LOGGER.info("Email Sent Successfully: {}", emailMsg.getMail());
         }
         catch (Exception e){
-            LOGGER.info("Exception in Sending Message: "+e);
+            LOGGER.info("Exception in Sending Message: {}", e.getMessage());
         }
 
     }
@@ -149,7 +149,7 @@ public class SharedService {
             return new ResponseEntity<>("Email Sent Successfully", HttpStatus.OK);
         }
         catch (Exception e){
-            LOGGER.info("Exception in Sending Message: "+e);
+            LOGGER.info("Exception in Sending Message: {}", e.getMessage());
             return new ResponseEntity<>("Exception in Sending Message",HttpStatus.EXPECTATION_FAILED);
         }
     }

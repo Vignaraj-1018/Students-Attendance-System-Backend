@@ -29,7 +29,7 @@ public class NotificationService {
             return new ResponseEntity<>("Successfully Triggered Scheduler",HttpStatus.OK);
         }
         catch (Exception e){
-            LOGGER.info("Error in Triggering the Scheduler"+ e.toString());
+            LOGGER.info("Error in Triggering the Scheduler: {}", e.getMessage());
             return new ResponseEntity<>("Error in Triggering the Scheduler",HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -42,7 +42,7 @@ public class NotificationService {
             return new ResponseEntity<>("Triggered method to send Notification All Users Successfully",HttpStatus.OK);
         }
         catch (Exception e){
-            LOGGER.info("Failed to Trigger method to send Notification"+ e.toString());
+            LOGGER.info("Failed to Trigger method to send Notification: {}", e.getMessage());
             return new ResponseEntity<>("Failed to Trigger method to send Notification",HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -65,7 +65,7 @@ public class NotificationService {
             LOGGER.info("Notification Sent to All Users Successfully");
         }
         catch (Exception e){
-            LOGGER.info("Error While Sending Notification "+e.toString());
+            LOGGER.info("Error While Sending Notification {}", e.getMessage());
         }
     }
 
@@ -92,13 +92,13 @@ public class NotificationService {
     public ResponseEntity<?> enableNotificationForUser(UserDetails userDetails){
         UserDetails userFromDB = sharedService.getUserByUserId(userDetails.getUserId());
         if(userFromDB == null){
-            LOGGER.error("User Not Found: "+userDetails.getUserId());
+            LOGGER.error("User Not Found: {}", userDetails.getUserId());
             return new ResponseEntity<>("User Not Found",HttpStatus.NOT_FOUND);
         }
         else{
             userFromDB.setNotificationEnabled(true);
             sharedService.upsertUser(userFromDB);
-            LOGGER.info("Notification Enabled Successfully "+userDetails.getUserId());
+            LOGGER.info("Notification Enabled Successfully {}", userDetails.getUserId());
             return new ResponseEntity<>("Notification Enabled Successfully",HttpStatus.OK);
         }
     }
@@ -106,13 +106,13 @@ public class NotificationService {
     public ResponseEntity<?> disableNotificationForUser(UserDetails userDetails){
         UserDetails userFromDB = sharedService.getUserByUserId(userDetails.getUserId());
         if(userFromDB == null){
-            LOGGER.error("User Not Found: "+userDetails.getUserId());
+            LOGGER.error("User Not Found: {}", userDetails.getUserId());
             return new ResponseEntity<>("User Not Found",HttpStatus.NOT_FOUND);
         }
         else {
             userFromDB.setNotificationEnabled(false);
             sharedService.upsertUser(userFromDB);
-            LOGGER.info("Notification Disabled Successfully "+userDetails.getUserId());
+            LOGGER.info("Notification Disabled Successfully: {}", userDetails.getUserId());
             return new ResponseEntity<>("Notification Disabled Successfully", HttpStatus.OK);
         }
     }

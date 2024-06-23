@@ -38,4 +38,9 @@ public class AttendanceController {
     public ResponseEntity<?> getSingleUserAllAttendance(@RequestParam String userId){
         return attendanceService.getSingleUserAllAttendance(userId);
     }
+
+    @GetMapping("/summary")
+    public ResponseEntity<?> getSummaryAttendance(@RequestParam String userId){
+        return attendanceService.getSummaryAttendance(userId);
+    }
 }

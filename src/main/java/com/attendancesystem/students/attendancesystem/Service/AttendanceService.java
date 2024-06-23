@@ -14,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -30,15 +31,15 @@ public class AttendanceService {
     public ResponseEntity<?> updateAttendance(AttendanceDetails attendanceDetails){
         UserDetails userDetails = sharedService.getUserByUserId(attendanceDetails.getUserId());
         if(userDetails == null){
-            LOGGER.error("User Not Found"+attendanceDetails.getUserId());
+            LOGGER.error("User Not Found: {}",attendanceDetails.getUserId());
             return new ResponseEntity<>("User Not Found",HttpStatus.NOT_FOUND);
         } else if (userDetails.isAuthenticated()) {
             upsertAttendance(attendanceDetails);
-            LOGGER.info("User Attendance Updated Successfully: "+attendanceDetails.getUserId());
+            LOGGER.info("User Attendance Updated Successfully: {}", attendanceDetails.getUserId());
             return new ResponseEntity<>(attendanceDetails,HttpStatus.OK);
         }
         else {
-            LOGGER.error("User Not Authenticated: "+attendanceDetails.getUserId());
+            LOGGER.error("User Not Authenticated: {}", attendanceDetails.getUserId());
             return new ResponseEntity<>("User Not Authenticated",HttpStatus.NOT_ACCEPTABLE);
         }
     }
@@ -47,11 +48,11 @@ public class AttendanceService {
         AttendanceDetails attendanceDetailsDB = sharedService.checkForExistingAttendance(attendanceDetails.getUserId(), attendanceDetails.getAcademicYear(), attendanceDetails.getSemester());
         if(attendanceDetailsDB == null){
             attendanceDetails.setAttendanceId(UUID.randomUUID().toString());
-            LOGGER.info("New Attendance Details for userId: "+attendanceDetails.getUserId());
+            LOGGER.info("New Attendance Details for userId: {}", attendanceDetails.getUserId());
         }
         else{
             attendanceDetails.setAttendanceId(attendanceDetailsDB.getAttendanceId());
-            LOGGER.info("Existing Attendance Details for userId: "+attendanceDetails.getUserId());
+            LOGGER.info("Existing Attendance Details for userId: {}", attendanceDetails.getUserId());
         }
         Document document = new Document();
         mongoTemplate.getConverter().write(attendanceDetails, document);
@@ -64,11 +65,11 @@ public class AttendanceService {
         System.out.println(attendanceId);
         DeleteResult  deleteResult= sharedService.deleteSingleAttendance(attendanceId);
         if(deleteResult.getDeletedCount() == 1){
-            LOGGER.info("Attendance Details Deleted Successfully: "+attendanceId);
+            LOGGER.info("Attendance Details Deleted Successfully: {}", attendanceId);
             return new ResponseEntity<>("Attendance Details Deleted Successfully",HttpStatus.OK);
         }
         else{
-            LOGGER.error("Error in Deleting Attendance Details: "+attendanceId);
+            LOGGER.error("Error in Deleting Attendance Details: {}", attendanceId);
             return new ResponseEntity<>("Error in Deleting Attendance Details",HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -76,11 +77,11 @@ public class AttendanceService {
     public ResponseEntity<?> getSingleAttendance(String attendanceId) {
         AttendanceDetails attendanceDetails = sharedService.getSingleAttendance(attendanceId);
         if(attendanceDetails == null){
-            LOGGER.error("Attendance Not Found"+attendanceId);
+            LOGGER.error("Attendance Not Found: {}", attendanceId);
             return new ResponseEntity<>("Attendance Not Found",HttpStatus.NOT_FOUND);
         }
         else{
-            LOGGER.info("Attendance Fetch Successful"+attendanceId);
+            LOGGER.info("Attendance Fetch Successful: {}", attendanceId);
             return new ResponseEntity<>(attendanceDetails,HttpStatus.OK);
         }
     }
@@ -88,17 +89,36 @@ public class AttendanceService {
     public ResponseEntity<?> getSingleUserAllAttendance(String userId) {
         UserDetails userDetails = sharedService.getUserByUserId(userId);
         if(userDetails == null){
-            LOGGER.error("User Not Found: "+userId);
+            LOGGER.error("User Not Found: {}",userId);
             return new ResponseEntity<>("User Not Found",HttpStatus.NOT_FOUND);
         }
         List<AttendanceDetails> attendanceDetails = sharedService.getAttendanceByUserId(userId);
         if(attendanceDetails.isEmpty()){
-            LOGGER.error("Attendance Not Found for User: "+userId);
+            LOGGER.error("Attendance Not Found for User: {}", userId);
             return new ResponseEntity<>("Attendance Not Found",HttpStatus.NOT_FOUND);
         }
         else{
-            LOGGER.info("Attendance Fetch Successful for User"+userId);
+            LOGGER.info("Attendance Fetch Successful for User: {}", userId);
             return new ResponseEntity<>(attendanceDetails,HttpStatus.OK);
         }
+    }
+
+    public ResponseEntity<?> getSummaryAttendance(String userId) {
+        try {
+            LOGGER.info("Getting Attendance Summary: {}", userId);
+            String query = "{'aggregate': 'attendance_details', 'pipeline':[" +
+                    "{$match:{userId:\"?\"}},{$group:{_id:{academicYear:\"$academicYear\"},semesters:{$push:{semester:\"$semester\",attendanceId:\"$_id\"}},academicYear:{$first:\"$academicYear\"},}},{$project:{_id:0,academicYear:1,semesters:{$sortArray:{input:\"$semesters\",sortBy:{semester:1}}}}},{$sort:{academicYear:1}}" +
+                    "],'cursor':{}}";
+            query = query.replaceAll("\\?", userId);
+            Document summaryAttendance = mongoTemplate.executeCommand(query);
+            Map<String, Object> cursor = (Map<String, Object>) summaryAttendance.get("cursor");
+            List<?> firstBatch = (List<?>) cursor.get("firstBatch");
+            LOGGER.info("Attendance Summary Fetch Successful");
+            return new ResponseEntity<>(firstBatch, HttpStatus.OK);
+        } catch (Exception e) {
+            LOGGER.info("Cannot get User Summary: {}", e.getMessage());
+            return new ResponseEntity<>(e, HttpStatus.NOT_FOUND);
+        }
+
     }
 }

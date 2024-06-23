@@ -35,6 +35,7 @@ public class SecurityConfig {
                         .requestMatchers("/sendRemainder").permitAll()
                         .requestMatchers("/sendNotification").permitAll()
                         .requestMatchers("/user/**").permitAll()
+                        .requestMatchers("/").permitAll()
                         .anyRequest().authenticated());
         http.sessionManagement(
                 session ->

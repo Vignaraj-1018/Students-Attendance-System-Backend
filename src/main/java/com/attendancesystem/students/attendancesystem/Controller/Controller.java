@@ -17,7 +17,7 @@ public class Controller {
     @GetMapping("")
     public ResponseEntity<?> welcomeFunction(){
         System.out.println("Hello from the Welcome Function!");
-        return new ResponseEntity<>("Ok",HttpStatus.OK);
+        return new ResponseEntity<>("Welcome to Student Attendance API",HttpStatus.OK);
     }
 
     @PostMapping("/sendNotification")

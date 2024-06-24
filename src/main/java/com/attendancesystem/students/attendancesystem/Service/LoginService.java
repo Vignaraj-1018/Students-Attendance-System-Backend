@@ -36,28 +36,6 @@ public class LoginService {
     @Autowired
     private JwtUtils jwtUtils;
 
-    public ResponseEntity<?> authUser(UserDetails userDetails){
-        if(userDetails.getPassword()==null){
-            LOGGER.error("User Password Not Found: " + userDetails.getUserEmail());
-            return new ResponseEntity<>("User Password Not Found",HttpStatus.NOT_FOUND);
-        }
-        UserDetails userFromDB = sharedService.getUserByUserEmail(userDetails.getUserEmail());
-        if( userFromDB == null){
-            LOGGER.error("User Not Found: " + userDetails.getUserEmail());
-            return new ResponseEntity<>("User Not Found",HttpStatus.NOT_FOUND);
-        }
-        else{
-            if(checkPassword(userDetails.getPassword(),userFromDB.getPassword())){
-                LOGGER.info("User Login Successful: " + userDetails.getUserEmail());
-                return new ResponseEntity<>(userFromDB,HttpStatus.OK);
-            }
-            else {
-                LOGGER.error("User Password Wrong: " + userDetails.getUserEmail());
-                return new ResponseEntity<>("User Password Wrong",HttpStatus.UNAUTHORIZED);
-            }
-        }
-    }
-
     public ResponseEntity<?> loginUser(UserDetails userDetails){
         String jwtToken = authenticateUser(userDetails);
         if (!Objects.equals(jwtToken, "AUTH_FAILED")) {
@@ -67,7 +45,7 @@ public class LoginService {
         }
         else{
             LOGGER.error("User Login Failed: {}", userDetails.getUserEmail());
-            return new ResponseEntity<>("User Login Failed",HttpStatus.UNAUTHORIZED);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "User Login Failed"));
         }
     }
 
@@ -104,48 +82,42 @@ public class LoginService {
 
     public ResponseEntity<?> createUser(UserDetails userDetails) {
         try {
-            if(sharedService.getUserByUserEmail(userDetails.getUserEmail()) == null) {
+            if (sharedService.getUserByUserEmail(userDetails.getUserEmail()) == null) {
                 Map<String, Object> response = sendEmailOTP(userDetails);
-                if(response.get("result").equals("SUCCESS")){
+                if (response.get("result").equals("SUCCESS")) {
                     return addUser(userDetails);
-                }
-                else{
+                } else {
                     Exception e = (Exception) response.get("Exception");
-                    if(e instanceof ResourceAccessException){
+                    if (e instanceof ResourceAccessException) {
                         LOGGER.error("Email Service Down: {}", userDetails.getUserEmail());
-                        return new ResponseEntity<>("Email Service Down",HttpStatus.GATEWAY_TIMEOUT);
-                    }
-                    else{
+                        return ResponseEntity.status(HttpStatus.GATEWAY_TIMEOUT).body(Map.of("message", "Email Service Down"));
+                    } else {
                         LOGGER.error("Error in Sending the OTP: {}", userDetails.getUserEmail());
-                        return new ResponseEntity<>("Error in Sending the OTP",HttpStatus.INTERNAL_SERVER_ERROR);
+                        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "Error in Sending the OTP"));
                     }
                 }
-            }
-            else{
+            } else {
                 LOGGER.error("User Already Exist: {}", userDetails.getUserEmail());
-                return new ResponseEntity<>("User Already Exist",HttpStatus.CONFLICT);
+                return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", "User Already Exist"));
             }
-        }
-        catch (Exception e){
+        } catch (Exception e) {
             LOGGER.error("Error in Creating the User: {}", userDetails.getUserEmail());
-            return new ResponseEntity<>("Error in Creating the User",HttpStatus.INTERNAL_SERVER_ERROR);
-
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "Error in Creating the User"));
         }
     }
 
-    public ResponseEntity<?> updateUser(UserDetails userDetails){
+    public ResponseEntity<?> updateUser(UserDetails userDetails) {
         UserDetails userFromDB = sharedService.getUserByUserId(userDetails.getUserId());
-        if(userFromDB == null){
+        if (userFromDB == null) {
             LOGGER.info("User Not Found: {}", userDetails.getUserId());
-            return new ResponseEntity<>("User Not Found",HttpStatus.NOT_FOUND);
-        }
-        else{
-            if(userDetails.getName()!=null){
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "User Not Found"));
+        } else {
+            if (userDetails.getName() != null) {
                 userFromDB.setName(userDetails.getName());
             }
             sharedService.upsertUser(userFromDB);
             LOGGER.info("User Updated Successfully: {}", userDetails.getUserId());
-            return new ResponseEntity<>("User Updated Successfully",HttpStatus.OK);
+            return ResponseEntity.status(HttpStatus.OK).body(Map.of("message", "User Updated Successfully"));
         }
     }
 
@@ -224,75 +196,73 @@ public class LoginService {
 
     public ResponseEntity<?> validateOtp(UserDetails userDetails) {
         UserDetails userFromDB = sharedService.getUserByUserEmail(userDetails.getUserEmail());
-        System.out.println(userFromDB);
-        if(userFromDB.getOTP().equals(userDetails.getOTP())){
-            if(userFromDB.isAuthenticated()){
+
+        if (userFromDB == null) {
+            LOGGER.error("User Not Found: {}", userDetails.getUserEmail());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "User Not Found"));
+        }
+
+        if (userFromDB.getOTP().equals(userDetails.getOTP())) {
+            if (userFromDB.isAuthenticated()) {
                 LOGGER.error("User Already Authenticated: {}", userFromDB.getUserId());
-                return new ResponseEntity<>("User Already Authenticated",HttpStatus.NOT_ACCEPTABLE);
+                return ResponseEntity.status(HttpStatus.NOT_ACCEPTABLE).body(Map.of("message", "User Already Authenticated"));
             }
             userFromDB.setAuthenticated(true);
             sharedService.upsertUser(userFromDB);
             LOGGER.info("OTP Validation Successful: {}", userFromDB.getUserId());
-            return new ResponseEntity<>("OTP Validation Successful",HttpStatus.OK);
-        }
-        else {
+            return ResponseEntity.status(HttpStatus.OK).body(Map.of("message", "OTP Validation Successful"));
+        } else {
             LOGGER.error("User OTP Mismatch: {}", userFromDB.getUserId());
-            return new ResponseEntity<>("OTP Mismatch",HttpStatus.NOT_ACCEPTABLE);
+            return ResponseEntity.status(HttpStatus.NOT_ACCEPTABLE).body(Map.of("message", "OTP Mismatch"));
         }
     }
 
     public ResponseEntity<?> resendOtp(UserDetails userDetails) {
         UserDetails userFromDB = sharedService.getUserByUserEmail(userDetails.getUserEmail());
-        if(userFromDB == null){
+        if (userFromDB == null) {
             LOGGER.info("User Not Found: {}", userDetails.getUserEmail());
-            return new ResponseEntity<>("User Not Found",HttpStatus.NOT_FOUND);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "User Not Found"));
         }
-        if(userFromDB.isAuthenticated()){
+        if (userFromDB.isAuthenticated()) {
             LOGGER.info("User Already Authenticated: {}", userFromDB.getUserId());
-            return new ResponseEntity<>("User Already Authenticated",HttpStatus.CONFLICT);
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", "User Already Authenticated"));
         }
         Map<String, Object> response = sendEmailOTP(userFromDB);
-        if(response.get("result").equals("SUCCESS")){
+        if (response.get("result").equals("SUCCESS")) {
             sharedService.upsertUser(userFromDB);
             LOGGER.info("Resend OTP Successful: {}", userFromDB.getUserId());
-            return new ResponseEntity<>("Resend OTP Successful",HttpStatus.OK);
-        }
-        else{
+            return ResponseEntity.status(HttpStatus.OK).body(Map.of("message", "Resend OTP Successful"));
+        } else {
             Exception e = (Exception) response.get("Exception");
-            if(e instanceof ResourceAccessException){
+            if (e instanceof ResourceAccessException) {
                 LOGGER.error("Email Service Down: {}", userFromDB.getUserEmail());
-                return new ResponseEntity<>("Email Service Down",HttpStatus.GATEWAY_TIMEOUT);
-            }
-            else{
+                return ResponseEntity.status(HttpStatus.GATEWAY_TIMEOUT).body(Map.of("message", "Email Service Down"));
+            } else {
                 LOGGER.error("Error in Resending the OTP: {}", userFromDB.getUserEmail());
-                return new ResponseEntity<>("Error in Resending the OTP",HttpStatus.INTERNAL_SERVER_ERROR);
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "Error in Resending the OTP"));
             }
         }
     }
 
     public ResponseEntity<?> forgotPasswordRequest(UserDetails userDetails) {
         UserDetails userFromDB = sharedService.getUserByUserEmail(userDetails.getUserEmail());
-        if(userFromDB == null){
+        if (userFromDB == null) {
             LOGGER.info("User Not Found: {}", userDetails.getUserEmail());
-            return new ResponseEntity<>("User Not Found",HttpStatus.NOT_FOUND);
-        }
-        else{
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "User Not Found"));
+        } else {
             Map<String, Object> response = sendEmailOTP(userFromDB);
-            if(response.get("result").equals("SUCCESS")){
-                System.out.println(userFromDB);
+            if (response.get("result").equals("SUCCESS")) {
                 sharedService.upsertUser(userFromDB);
                 LOGGER.info("OTP Sent Successfully: {}", userDetails.getUserEmail());
-                return new ResponseEntity<>("OTP Sent Successfully, Validate Email to Continue",HttpStatus.OK);
-            }
-            else{
+                return ResponseEntity.status(HttpStatus.OK).body(Map.of("message", "OTP Sent Successfully, Validate Email to Continue"));
+            } else {
                 Exception e = (Exception) response.get("Exception");
-                if(e instanceof ResourceAccessException){
+                if (e instanceof ResourceAccessException) {
                     LOGGER.error("Email Service Down: {}", userFromDB.getUserEmail());
-                    return new ResponseEntity<>("Email Service Down",HttpStatus.GATEWAY_TIMEOUT);
-                }
-                else{
+                    return ResponseEntity.status(HttpStatus.GATEWAY_TIMEOUT).body(Map.of("message", "Email Service Down"));
+                } else {
                     LOGGER.error("Error in Sending the OTP: {}", userFromDB.getUserEmail());
-                    return new ResponseEntity<>("Error in Sending the OTP",HttpStatus.INTERNAL_SERVER_ERROR);
+                    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "Error in Sending the OTP"));
                 }
             }
         }
@@ -300,23 +270,20 @@ public class LoginService {
 
     public ResponseEntity<?> resetPassword(UserDetails userDetails) {
         UserDetails userFromDB = sharedService.getUserByUserEmail(userDetails.getUserEmail());
-        if(userFromDB == null){
+        if (userFromDB == null) {
             LOGGER.info("User Not Found: {}", userDetails.getUserEmail());
-            return new ResponseEntity<>("User Not Found",HttpStatus.NOT_FOUND);
-        }
-        else{
-            if(userFromDB.isAuthenticated()){
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "User Not Found"));
+        } else {
+            if (userFromDB.isAuthenticated()) {
                 userFromDB.setPassword(encryptPassword(userDetails.getPassword()));
                 sharedService.upsertUser(userFromDB);
 
                 LOGGER.info("Reset Password Successful: {}", userDetails.getUserId());
-                return new ResponseEntity<>("Reset Password Successful",HttpStatus.OK);
-            }
-            else{
+                return ResponseEntity.status(HttpStatus.OK).body(Map.of("message", "Reset Password Successful"));
+            } else {
                 LOGGER.info("User is Not Authenticated: {}", userDetails.getUserId());
-                return new ResponseEntity<>("User is not Authenticated",HttpStatus.NOT_ACCEPTABLE);
+                return ResponseEntity.status(HttpStatus.NOT_ACCEPTABLE).body(Map.of("message", "User is not Authenticated"));
             }
-
         }
     }
 }

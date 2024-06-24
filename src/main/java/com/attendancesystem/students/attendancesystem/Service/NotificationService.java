@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class NotificationService {
@@ -26,24 +27,23 @@ public class NotificationService {
             Thread backgroundThread = new Thread(this::dailyNotification);
             backgroundThread.start();
             LOGGER.info("Scheduler Triggered for Sending Remainder");
-            return new ResponseEntity<>("Successfully Triggered Scheduler",HttpStatus.OK);
+            return ResponseEntity.status(HttpStatus.OK).body(Map.of("message", "Successfully Triggered Scheduler"));
         }
         catch (Exception e){
             LOGGER.info("Error in Triggering the Scheduler: {}", e.getMessage());
-            return new ResponseEntity<>("Error in Triggering the Scheduler",HttpStatus.INTERNAL_SERVER_ERROR);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "Error in Triggering the Scheduler"));
         }
     }
 
-    public ResponseEntity<?> triggerNotificationToAllUser(EmailValidate notificationInfo){
-        try{
-            Thread backgroundThread = new Thread(()->sendNotificationToAllUser(notificationInfo));
+    public ResponseEntity<?> triggerNotificationToAllUser(EmailValidate notificationInfo) {
+        try {
+            Thread backgroundThread = new Thread(() -> sendNotificationToAllUser(notificationInfo));
             backgroundThread.start();
-            LOGGER.info("Triggered method to send Notification All Users Successfully");
-            return new ResponseEntity<>("Triggered method to send Notification All Users Successfully",HttpStatus.OK);
-        }
-        catch (Exception e){
-            LOGGER.info("Failed to Trigger method to send Notification: {}", e.getMessage());
-            return new ResponseEntity<>("Failed to Trigger method to send Notification",HttpStatus.INTERNAL_SERVER_ERROR);
+            LOGGER.info("Method to Send Notification to All Users Triggered Successfully");
+            return ResponseEntity.status(HttpStatus.OK).body(Map.of("message", "Method to Send Notification to All Users Triggered Successfully"));
+        } catch (Exception e) {
+            LOGGER.error("Failed to Trigger Method to Send Notification: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "Failed to Trigger Method to Send Notification"));
         }
     }
 
@@ -93,13 +93,13 @@ public class NotificationService {
         UserDetails userFromDB = sharedService.getUserByUserId(userDetails.getUserId());
         if(userFromDB == null){
             LOGGER.error("User Not Found: {}", userDetails.getUserId());
-            return new ResponseEntity<>("User Not Found",HttpStatus.NOT_FOUND);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("Message","User Not Found"));
         }
         else{
             userFromDB.setNotificationEnabled(true);
             sharedService.upsertUser(userFromDB);
             LOGGER.info("Notification Enabled Successfully {}", userDetails.getUserId());
-            return new ResponseEntity<>("Notification Enabled Successfully",HttpStatus.OK);
+            return ResponseEntity.status(HttpStatus.OK).body(Map.of("Message","Notification Enabled Successfully"));
         }
     }
 
@@ -107,13 +107,13 @@ public class NotificationService {
         UserDetails userFromDB = sharedService.getUserByUserId(userDetails.getUserId());
         if(userFromDB == null){
             LOGGER.error("User Not Found: {}", userDetails.getUserId());
-            return new ResponseEntity<>("User Not Found",HttpStatus.NOT_FOUND);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("Message","User Not Found"));
         }
         else {
             userFromDB.setNotificationEnabled(false);
             sharedService.upsertUser(userFromDB);
             LOGGER.info("Notification Disabled Successfully: {}", userDetails.getUserId());
-            return new ResponseEntity<>("Notification Disabled Successfully", HttpStatus.OK);
+            return ResponseEntity.status(HttpStatus.OK).body(Map.of("Message","Notification Disabled Successfully"));
         }
     }
 }

@@ -32,7 +32,7 @@ public class AttendanceService {
         UserDetails userDetails = sharedService.getUserByUserId(attendanceDetails.getUserId());
         if(userDetails == null){
             LOGGER.error("User Not Found: {}",attendanceDetails.getUserId());
-            return new ResponseEntity<>("User Not Found",HttpStatus.NOT_FOUND);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "User Not Found"));
         } else if (userDetails.isAuthenticated()) {
             upsertAttendance(attendanceDetails);
             LOGGER.info("User Attendance Updated Successfully: {}", attendanceDetails.getUserId());
@@ -40,7 +40,7 @@ public class AttendanceService {
         }
         else {
             LOGGER.error("User Not Authenticated: {}", attendanceDetails.getUserId());
-            return new ResponseEntity<>("User Not Authenticated",HttpStatus.NOT_ACCEPTABLE);
+            return ResponseEntity.status(HttpStatus.NOT_ACCEPTABLE).body(Map.of("message", "User Not Authenticated"));
         }
     }
 
@@ -63,14 +63,13 @@ public class AttendanceService {
 
     public ResponseEntity<?> deleteAttendance(String attendanceId) {
         System.out.println(attendanceId);
-        DeleteResult  deleteResult= sharedService.deleteSingleAttendance(attendanceId);
-        if(deleteResult.getDeletedCount() == 1){
+        DeleteResult deleteResult = sharedService.deleteSingleAttendance(attendanceId);
+        if (deleteResult.getDeletedCount() == 1) {
             LOGGER.info("Attendance Details Deleted Successfully: {}", attendanceId);
-            return new ResponseEntity<>("Attendance Details Deleted Successfully",HttpStatus.OK);
-        }
-        else{
+            return ResponseEntity.status(HttpStatus.OK).body(Map.of("message", "Attendance Details Deleted Successfully"));
+        } else {
             LOGGER.error("Error in Deleting Attendance Details: {}", attendanceId);
-            return new ResponseEntity<>("Error in Deleting Attendance Details",HttpStatus.INTERNAL_SERVER_ERROR);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "Error in Deleting Attendance Details"));
         }
     }
 
@@ -78,7 +77,7 @@ public class AttendanceService {
         AttendanceDetails attendanceDetails = sharedService.getSingleAttendance(attendanceId);
         if(attendanceDetails == null){
             LOGGER.error("Attendance Not Found: {}", attendanceId);
-            return new ResponseEntity<>("Attendance Not Found",HttpStatus.NOT_FOUND);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "Attendance Not Found"));
         }
         else{
             LOGGER.info("Attendance Fetch Successful: {}", attendanceId);
@@ -90,12 +89,12 @@ public class AttendanceService {
         UserDetails userDetails = sharedService.getUserByUserId(userId);
         if(userDetails == null){
             LOGGER.error("User Not Found: {}",userId);
-            return new ResponseEntity<>("User Not Found",HttpStatus.NOT_FOUND);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "User Not Found"));
         }
         List<AttendanceDetails> attendanceDetails = sharedService.getAttendanceByUserId(userId);
         if(attendanceDetails.isEmpty()){
             LOGGER.error("Attendance Not Found for User: {}", userId);
-            return new ResponseEntity<>("Attendance Not Found",HttpStatus.NOT_FOUND);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "Attendance Not Found"));
         }
         else{
             LOGGER.info("Attendance Fetch Successful for User: {}", userId);

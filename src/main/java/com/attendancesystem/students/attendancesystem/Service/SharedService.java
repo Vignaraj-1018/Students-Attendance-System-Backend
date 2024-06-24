@@ -24,6 +24,7 @@ import org.springframework.stereotype.Service;
 import javax.mail.internet.MimeMessage;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 @Service
@@ -146,11 +147,11 @@ public class SharedService {
             getJavaMailSender().send(mimeMessage);
 
             LOGGER.info("Email Sent Successfully: ");
-            return new ResponseEntity<>("Email Sent Successfully", HttpStatus.OK);
+            return ResponseEntity.status(HttpStatus.OK).body(Map.of("message", "Email Sent Successfully"));
         }
         catch (Exception e){
             LOGGER.info("Exception in Sending Message: {}", e.getMessage());
-            return new ResponseEntity<>("Exception in Sending Message",HttpStatus.EXPECTATION_FAILED);
+            return ResponseEntity.status(HttpStatus.EXPECTATION_FAILED).body(Map.of("message", "Exception in Sending Message"));
         }
     }
 }

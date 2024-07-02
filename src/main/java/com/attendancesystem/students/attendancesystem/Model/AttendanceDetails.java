@@ -19,5 +19,6 @@ public class AttendanceDetails {
     public String academicYear;
     public int semester;
     public Date lastModifiedDate;
+    public Double averagePercentage;
     public ArrayList<SubjectList> subjectList;
 }

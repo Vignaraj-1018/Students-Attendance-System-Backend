@@ -4,6 +4,7 @@ package com.attendancesystem.students.attendancesystem.Service;
 import com.attendancesystem.students.attendancesystem.Model.AttendanceDetails;
 import com.attendancesystem.students.attendancesystem.Model.EmailValidate;
 import com.attendancesystem.students.attendancesystem.Model.UserDetails;
+import com.mongodb.BasicDBObject;
 import com.mongodb.client.result.DeleteResult;
 import org.bson.Document;
 import org.slf4j.Logger;
@@ -11,6 +12,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.aggregation.Aggregation;
+import org.springframework.data.mongodb.core.aggregation.AggregationOperation;
+import org.springframework.data.mongodb.core.aggregation.AggregationResults;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
@@ -66,7 +70,52 @@ public class SharedService {
     }
 
     public AttendanceDetails getSingleAttendance(String attendanceId){
-        return mongoTemplate.findOne(new Query(Criteria.where("attendanceId").is(attendanceId)),AttendanceDetails.class);
+        // Match operation
+        AggregationOperation match = Aggregation.match(Criteria.where("_id").is(attendanceId));
+
+        // Unwind operation
+        AggregationOperation unwind = Aggregation.unwind("subjectList");
+
+        // Project operation
+        AggregationOperation project = Aggregation.project("_id", "academicYear", "semester", "lastModifiedDate")
+                .and("subjectList.subjectId").as("subjectId")
+                .and("subjectList.name").as("name")
+                .and("subjectList.presentCount").as("presentCount")
+                .and("subjectList.totalCount").as("totalCount")
+                .andExpression("subjectList.presentCount / subjectList.totalCount * 100").as("percentage");
+
+        // Group operation
+        AggregationOperation group = Aggregation.group("_id")
+                .first("academicYear").as("academicYear")
+                .first("semester").as("semester")
+                .first("_id").as("attendanceId")
+                .sum("percentage").as("totalPercentage")
+                .count().as("total")
+                .first("lastModifiedDate").as("lastModifiedDate")
+                .push(new BasicDBObject("name", "$name")
+                        .append("presentCount", "$presentCount")
+                        .append("totalCount", "$totalCount")
+                        .append("percentage", "$percentage")
+                        .append("subjectId", "$subjectId")
+                ).as("subjectList");
+
+        // Final Project operation
+        AggregationOperation finalProject = Aggregation.project()
+                .and("academicYear").as("academicYear")
+                .and("semester").as("semester")
+                .and("attendanceId").as("attendanceId")
+                .andExpression("totalPercentage / total").as("averagePercentage")
+                .and("lastModifiedDate").as("lastModifiedDate")
+                .and("subjectList").as("subjectList");
+
+        // Build the aggregation pipeline
+        Aggregation aggregation = Aggregation.newAggregation(match, unwind, project, group, finalProject);
+
+        // Execute the aggregation
+        AggregationResults<AttendanceDetails> result = mongoTemplate.aggregate(aggregation, "attendance_details", AttendanceDetails.class);
+
+        return result.getUniqueMappedResult();
+//        return mongoTemplate.findOne(new Query(Criteria.where("attendanceId").is(attendanceId)),AttendanceDetails.class);
     }
 
     public AttendanceDetails checkForExistingAttendance(String userId, String academicYear, int semester){

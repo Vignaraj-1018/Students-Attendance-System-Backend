@@ -10,4 +10,5 @@ public class SubjectList {
     public String name;
     public int presentCount;
     public int totalCount;
+    public Double percentage;
 }

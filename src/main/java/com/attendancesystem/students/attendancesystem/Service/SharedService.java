@@ -12,9 +12,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.aggregation.Aggregation;
-import org.springframework.data.mongodb.core.aggregation.AggregationOperation;
-import org.springframework.data.mongodb.core.aggregation.AggregationResults;
+import org.springframework.data.mongodb.core.aggregation.*;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
@@ -82,7 +80,18 @@ public class SharedService {
                 .and("subjectList.name").as("name")
                 .and("subjectList.presentCount").as("presentCount")
                 .and("subjectList.totalCount").as("totalCount")
-                .andExpression("subjectList.presentCount / subjectList.totalCount * 100").as("percentage");
+                .and(
+                        ConditionalOperators.when(
+                                        ComparisonOperators.valueOf("subjectList.totalCount").equalToValue(0)
+                                )
+                                .then(0)
+                                .otherwise(
+                                        ArithmeticOperators.Multiply.valueOf(
+                                                ArithmeticOperators.Divide.valueOf("subjectList.presentCount")
+                                                        .divideBy("subjectList.totalCount")
+                                        ).multiplyBy(100)
+                                )
+                ).as("percentage");
 
         // Group operation
         AggregationOperation group = Aggregation.group("_id")
